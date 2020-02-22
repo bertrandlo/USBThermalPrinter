@@ -1,0 +1,6 @@
+.idea/
+build/
+receive.build/
+venv/
+*.dll
+*.pyc
