@@ -11,9 +11,9 @@ from io import StringIO, BytesIO
 
 class ThermalPrint:
 
-    def __init__(self, strPrinterName:str, img_maxWidth:int, header_margin:int, footer_margin:int, line_spacing:int, *, cutting=False):
-        self.hPrinter = win32print.OpenPrinter(strPrinterName)
-        self.strPrinterName = strPrinterName
+    def __init__(self, printerName:str, img_maxWidth:int, header_margin:int, footer_margin:int, line_spacing:int, *, cutting=False):
+        self.hPrinter = win32print.OpenPrinter(printerName)
+        self.strPrinterName = printerName
         self.img_maxWidth = img_maxWidth
         self.header_margin = header_margin
         self.footer_margin = footer_margin

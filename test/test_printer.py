@@ -20,7 +20,7 @@ class TestPrinter(unittest.TestCase):
     def __init__(self, *awg, **kawg):
         super().__init__(*awg, **kawg)
         settings = INIReader()
-        self.printer = ThermalPrint(strPrinterName=settings.get("General", "printer"),
+        self.printer = ThermalPrint(printerName=settings.get("General", "printer"),
                                     img_maxWidth=int(settings.get("format", "maxwidthpixels")),
                                     line_spacing=int(settings.get("format", "line_spacing")),
                                     header_margin=int(settings.get("format", "header_margin")),
