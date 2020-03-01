@@ -83,6 +83,7 @@ def hello():
 if __name__ == '__main__':
     # cli - " waitress-serve --listen=*:5000 app:app "
     # app.run()  # flask dev server
+    settings = INIReader()
     serve(app,
-          listen='127.0.0.1:5000',
+          listen=settings.get("network", "listen"),
           url_scheme='http')  # waitress production serve
