@@ -59,7 +59,7 @@ def printing():
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            with open(filename, 'rb') as fin:
+            with open(os.path.join(app.config['UPLOAD_FOLDER'], filename), 'rb') as fin:
                 bytes = BytesIO(fin.read())
             printer.load(bytes)
             printer.printing()
