@@ -1,0 +1,23 @@
+altgraph==0.16.1
+Click==7.0
+configparser==4.0.2
+# cx-Freeze==5.1.1
+Flask==1.1.1
+Flask-Cors==3.0.8
+future==0.17.1
+itsdangerous==1.1.0
+Jinja2==2.11.1
+macholib==1.11
+MarkupSafe==1.1.1
+Nuitka==0.6.1
+pefile==2018.8.8
+Pillow==5.4.1
+# py2exe==0.9.2.2
+# PyInstaller==3.5.dev0+0d289e49b
+# PyQt5==5.11.3
+# PyQt5-sip==4.19.13
+# pywin32==224
+# pywin32-ctypes==0.2.0
+# six==1.14.0
+waitress==1.4.3
+Werkzeug==1.0.0
