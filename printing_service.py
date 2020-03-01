@@ -3,18 +3,19 @@ import os
 import json
 from time import time
 import secrets
-import configparser
+from ini_reader import INIReader
 from thermal_printer import ThermalPrint
-from flask import Flask, jsonify, request, Response, flash, redirect, url_for
+from flask import Flask, jsonify, request, flash, redirect
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from waitress import serve
+from io import BytesIO
 
 
 # ref: https://testdriven.io/blog/developing-a-single-page-app-with-flask-and-vuejs/
 # configuration
 DEBUG = True
-UPLOAD_FOLDER = './test/'
+UPLOAD_FOLDER = './post_receive/'
 ALLOWED_EXTENSIONS = {'txt', 'png', 'jpg'}
 
 # instantiate the app
@@ -37,6 +38,13 @@ def allowed_file(filename):
 
 @app.route('/printing', methods=['POST'])
 def printing():
+    settings = INIReader()
+    printer = ThermalPrint(printerName=settings.get("General", "printer"),
+                           img_maxWidth=int(settings.get("format", "maxwidthpixels")),
+                           line_spacing=int(settings.get("format", "line_spacing")),
+                           header_margin=int(settings.get("format", "header_margin")),
+                           footer_margin=int(settings.get("format", "footer_margin")),
+                           cutting=settings.get("format", "cutting"))
     if request.method == 'POST':
         # check if the post request has the file part
         if 'file' not in request.files:
@@ -51,6 +59,10 @@ def printing():
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            with open(filename, 'rb') as fin:
+                bytes = BytesIO(fin.read())
+            printer.load(bytes)
+            printer.printing()
             return json.dumps({'success': True}), 200, {'ContentType': 'application/json'}
     return '''
     <!doctype html>
