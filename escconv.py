@@ -98,9 +98,10 @@ class UiForm(QWidget):
 
         self.printer = ThermalPrint(strPrinterName=settings.value("printer", '', type=str),
                                     img_maxWidth=settings.value("format/maxwidthpixels", 380, type=int),
-                                    line_spacing=settings.value("format/line_spacing", 0, type=str),
+                                    line_spacing=settings.value("format/line_spacing", 0, type=int),
                                     header_margin=settings.value("format/header_margin", 1, type=int),
-                                    footer_margin=settings.value("format/footer_margin", 1, type=int))
+                                    footer_margin=settings.value("format/footer_margin", 1, type=int),
+                                    cutting=settings.value("format/cutting", False, type=bool))
 
     def fnPipe(self):
         self.printer.fnCreateReceivePipe()
@@ -135,18 +136,19 @@ class UiForm(QWidget):
 
 class ThermalPrint(QObject):
 
-    def __init__(self, strPrinterName:str, img_maxWidth:int, header_margin:int, footer_margin:int, line_spacing:str):
+    def __init__(self, strPrinterName:str, img_maxWidth:int, header_margin:int, footer_margin:int, line_spacing:int, *, cutting=False):
         super(ThermalPrint, self).__init__()
         self.hPrinter = win32print.OpenPrinter(strPrinterName)  # GP-5890X
         self.strPrinterName = strPrinterName
         self.img_maxWidth = img_maxWidth
-        self.header_margin = b'\x0a'*header_margin
-        self.footer_margin = b'\x0a'*footer_margin
+        self.header_margin = header_margin
+        self.footer_margin = footer_margin
         self.imgFileName = ''
         self.rawPrintBuf = StringIO()
-        self.line_spacing = line_spacing.encode('ascii')
+        self.line_spacing = line_spacing
         self.hPipe = None
         self.strPipeName = '\\.\pipe\thermalprint'
+        self.cutting = cutting
 
         Image._initialized = 2
 
@@ -187,11 +189,16 @@ class ThermalPrint(QObject):
         logging.debug('ERRMSG - ' + self.server.errorString())
         logging.debug('Pending Connections: ' + str(self.server.hasPendingConnections()))
 
-    def printing(self):
+    def printing(self, *, content: str=None):
         self.hPrinter = win32print.OpenPrinter(self.strPrinterName)
-        hJob = win32print.StartDocPrinter(self.hPrinter, 1, (self.imgFileName, None, "RAW"))
-        win32print.StartPagePrinter(self.hPrinter)
-        win32print.WritePrinter(self.hPrinter, self.rawPrintBuf.getvalue())
+
+        if content is not None:
+            hJob = win32print.StartDocPrinter(self.hPrinter, 1, (self.imgFileName, None, "TEXT"))
+            win32print.WritePrinter(self.hPrinter, content.encode("cp950"))
+        else:
+            hJob = win32print.StartDocPrinter(self.hPrinter, 1, (self.imgFileName, None, "RAW"))
+            win32print.StartPagePrinter(self.hPrinter)
+            win32print.WritePrinter(self.hPrinter, self.rawPrintBuf.getvalue())
         win32print.EndDocPrinter(self.hPrinter)
         win32print.ClosePrinter(self.hPrinter)
 
@@ -234,7 +241,7 @@ class ThermalPrint(QObject):
 
         # if origin scaled image height is not a multiple of 24 pixels, fix that
         if temp_im.size[0] % 24:
-            im2 = Image.new('1', (temp_im.size[0] + 24 - temp_im.size[0] % 24, temp_im.size[1]), 'white')
+            im2 = Image.new('1', (temp_im.size[0] + 24 - temp_im.size[0] % 24, temp_im.size[1]), 'black')  # black 才是不列印
             im2.paste(temp_im, (0, 0))
             temp_im = im2
 
@@ -244,18 +251,20 @@ class ThermalPrint(QObject):
         self.rawPrintBuf.close()
         self.rawPrintBuf = BytesIO()
 
-        self.rawPrintBuf.write(self.header_margin)
         # Line Spacing 30h
-        self.rawPrintBuf.write(ESC + b'\x33'+self.line_spacing)
+        self.rawPrintBuf.write(ESC + b'\x33' + bytes([self.line_spacing]))
+        self.rawPrintBuf.write(ESC + b'\x4a' + bytes([self.header_margin]))  # ESC J n
 
         for row in range(int(temp_im.size[0] / 24)):
             strip = temp_im.crop((row * 24, 0, (row + 1) * 24, temp_im.size[1]))    # crop rectangle, as a (left, upper, right, lower)-tuple <= 380px
             # ESC * 33  ==> 24 dots double density mode
             # self.rawPrintBuf.write(b''.join((ESC+b'\x2a\x21', struct.pack('2B', temp_im.size[1] % (256), int(temp_im.size[1] / (256))), strip.tobytes())))
             # struct.pack('2B', temp_im.size[1] % (256), int(temp_im.size[1] / (256))) 指定  nl, nh
-            self.rawPrintBuf.write(ESC + b'\x2a\x21' + struct.pack('2B', temp_im.size[1] % (256), int(temp_im.size[1] / (256))) + strip.tobytes())
+            self.rawPrintBuf.write(ESC + b'\x2a\x21' + struct.pack('2B', temp_im.size[1] % 256, int(temp_im.size[1] / 256)) + strip.tobytes())
+            self.rawPrintBuf.write(ESC + b'\x4a\x00')  # ESC J n
 
         # 針對GP58 等加熱頭比較後縮的機種增加頁尾出紙 但會對其他機種造成定位麻煩
         # 應該把頁前頁尾放在 設定檔內方便調整
-
-        self.rawPrintBuf.write(self.footer_margin)
+        self.rawPrintBuf.write(ESC + b'\x4a' + bytes([self.footer_margin]))  # ESC J n
+        if self.cutting:
+            self.rawPrintBuf.write(ESC + b'\x69')

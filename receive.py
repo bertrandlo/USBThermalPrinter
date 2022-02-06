@@ -4,6 +4,7 @@ from PyQt5.QtCore import QSettings
 from PyQt5.Qt import QApplication
 import escconv
 
+
 if __name__ == '__main__':
     settings = QSettings("settings.ini", QSettings.IniFormat)
 
